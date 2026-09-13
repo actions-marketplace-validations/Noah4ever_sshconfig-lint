@@ -92,6 +92,248 @@ Host github.com
 }
 
 #[test]
+fn snapshot_invalid_values_text_output() {
+    let findings = lint_str(
+        "\
+Port 0
+Host example.com
+  Port nope
+Match host internal.example.com
+  Port 65536
+",
+    );
+    let output = sshconfig_lint::report::emit_text(&findings, false);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_invalid_values_json_output() {
+    let findings = lint_str(
+        "\
+Port 0
+Host example.com
+  Port nope
+Match host internal.example.com
+  Port 65536
+",
+    );
+    let output = sshconfig_lint::report::emit_json(&findings);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_numeric_values_text_output() {
+    let findings = lint_str(
+        "\
+ConnectionAttempts 0
+ConnectTimeout +1
+Host example.com
+  ServerAliveCountMax -1
+  StreamLocalBindMask 0788
+Match host internal.example.com
+  IPQoS af21 bogus
+",
+    );
+    let output = sshconfig_lint::report::emit_text(&findings, false);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_numeric_values_json_output() {
+    let findings = lint_str(
+        "\
+ConnectionAttempts 0
+ConnectTimeout +1
+Host example.com
+  ServerAliveCountMax -1
+  StreamLocalBindMask 0788
+Match host internal.example.com
+  IPQoS af21 bogus
+",
+    );
+    let output = sshconfig_lint::report::emit_json(&findings);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_enumerated_values_text_output() {
+    let findings = lint_str(
+        "\
+AddressFamily ipv4
+RequestTTY always
+Host example.com
+  ControlMaster auto-ask
+  StrictHostKeyChecking accept_new
+  LogLevel DEBUG4
+Match host internal.example.com
+  Tunnel pointtopoint
+  SyslogFacility LOCAL8
+  PubkeyAuthentication bound
+",
+    );
+    let output = sshconfig_lint::report::emit_text(&findings, false);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_enumerated_values_json_output() {
+    let findings = lint_str(
+        "\
+AddressFamily ipv4
+RequestTTY always
+Host example.com
+  ControlMaster auto-ask
+  StrictHostKeyChecking accept_new
+  LogLevel DEBUG4
+Match host internal.example.com
+  Tunnel pointtopoint
+  SyslogFacility LOCAL8
+  PubkeyAuthentication bound
+",
+    );
+    let output = sshconfig_lint::report::emit_json(&findings);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_semantic_traps_text_output() {
+    let findings = lint_file(Path::new("tests/fixtures/semantic_traps.config")).unwrap();
+    let output = sshconfig_lint::report::emit_text(&findings, false);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_semantic_traps_json_output() {
+    let findings = lint_file(Path::new("tests/fixtures/semantic_traps.config")).unwrap();
+    let output = sshconfig_lint::report::emit_json(&findings);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_semantic_traps_sarif_output() {
+    let findings = lint_file(Path::new("tests/fixtures/semantic_traps.config")).unwrap();
+    let output = normalize_sarif_version(sshconfig_lint::report::emit_sarif(&findings));
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn snapshot_semantic_traps_github_output() {
+    let findings = lint_file(Path::new("tests/fixtures/semantic_traps.config")).unwrap();
+    let output = sshconfig_lint::report::emit_github(&findings);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn every_semantic_trap_has_the_stable_json_contract() {
+    let findings = lint_file(Path::new("tests/fixtures/semantic_traps.config")).unwrap();
+    let output: serde_json::Value =
+        serde_json::from_str(&sshconfig_lint::report::emit_json(&findings)).unwrap();
+    let diagnostics = output.as_array().unwrap();
+    let expected = [
+        ("NEGATED_HOST", "warning", "negated-only-host"),
+        ("PROXY_CONFLICT", "warning", "proxy-command-jump-conflict"),
+        (
+            "REVOKED_HOST_KEYS_UNREADABLE",
+            "error",
+            "revoked-host-keys-readable",
+        ),
+        ("MISSING_CERTIFICATE", "error", "certificate-file-exists"),
+        ("LOCAL_COMMAND_DISABLED", "warning", "local-command-enabled"),
+        ("INVALID_TOKEN", "error", "invalid-percent-token"),
+    ];
+
+    assert_eq!(diagnostics.len(), expected.len());
+    for (code, severity, rule) in expected {
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic["code"] == code)
+            .unwrap_or_else(|| panic!("missing {code}"));
+        assert_eq!(diagnostic["severity"], severity);
+        assert_eq!(diagnostic["rule"], rule);
+        assert!(diagnostic["line"].as_u64().is_some_and(|line| line > 0));
+        assert_eq!(diagnostic["file"], "tests/fixtures/semantic_traps.config");
+        assert!(!diagnostic["message"].as_str().unwrap().is_empty());
+        assert!(!diagnostic["hint"].as_str().unwrap().is_empty());
+        assert_eq!(
+            diagnostic["documentation"],
+            format!("https://sshconfig-lint.apps.thiering.org/en/rules/{rule}")
+        );
+    }
+}
+
+#[test]
+fn snapshot_common_mistakes_text_output() {
+    let findings = lint_file(Path::new("tests/fixtures/common_mistakes.config")).unwrap();
+    insta::assert_snapshot!(sshconfig_lint::report::emit_text(&findings, false));
+}
+
+#[test]
+fn snapshot_common_mistakes_json_output() {
+    let findings = lint_file(Path::new("tests/fixtures/common_mistakes.config")).unwrap();
+    insta::assert_snapshot!(sshconfig_lint::report::emit_json(&findings));
+}
+
+#[test]
+fn snapshot_common_mistakes_sarif_output() {
+    let findings = lint_file(Path::new("tests/fixtures/common_mistakes.config")).unwrap();
+    insta::assert_snapshot!(normalize_sarif_version(sshconfig_lint::report::emit_sarif(
+        &findings
+    )));
+}
+
+fn normalize_sarif_version(output: String) -> String {
+    output.replace(
+        &format!("\"version\": \"{}\"", env!("CARGO_PKG_VERSION")),
+        "\"version\": \"<VERSION>\"",
+    )
+}
+
+#[test]
+fn snapshot_common_mistakes_github_output() {
+    let findings = lint_file(Path::new("tests/fixtures/common_mistakes.config")).unwrap();
+    insta::assert_snapshot!(sshconfig_lint::report::emit_github(&findings));
+}
+
+#[test]
+fn every_common_mistake_has_the_stable_json_contract() {
+    let findings = lint_file(Path::new("tests/fixtures/common_mistakes.config")).unwrap();
+    let output: serde_json::Value =
+        serde_json::from_str(&sshconfig_lint::report::emit_json(&findings)).unwrap();
+    let diagnostics = output.as_array().unwrap();
+    let expected = [
+        ("UNKNOWN_DIRECTIVE", "error", "unknown-directive"),
+        ("DEPRECATED_OPTION", "warning", "deprecated-option"),
+        (
+            "CONTROL_PERSIST_UNUSED",
+            "warning",
+            "control-persist-requires-master",
+        ),
+        (
+            "UPDATE_HOSTKEYS_ASK_PERSIST",
+            "warning",
+            "update-hostkeys-control-persist",
+        ),
+    ];
+
+    for (code, severity, rule) in expected {
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic["code"] == code)
+            .unwrap_or_else(|| panic!("missing {code}"));
+        assert_eq!(diagnostic["severity"], severity);
+        assert_eq!(diagnostic["rule"], rule);
+        assert!(diagnostic["line"].as_u64().is_some_and(|line| line > 0));
+        assert_eq!(diagnostic["file"], "tests/fixtures/common_mistakes.config");
+        assert!(!diagnostic["message"].as_str().unwrap().is_empty());
+        assert!(!diagnostic["hint"].as_str().unwrap().is_empty());
+        assert_eq!(
+            diagnostic["documentation"],
+            format!("https://sshconfig-lint.apps.thiering.org/en/rules/{rule}")
+        );
+    }
+}
+
+#[test]
 fn fixture_multiple_patterns() {
     let path = Path::new("tests/fixtures/multiple_patterns.config");
     let findings = lint_file(path).expect("should read fixture");

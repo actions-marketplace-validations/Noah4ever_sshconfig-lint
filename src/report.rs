@@ -93,7 +93,16 @@ fn sarif_level(severity: Severity) -> &'static str {
 }
 
 fn artifact_uri(file: &str) -> String {
-    file.replace('\\', "/").replace(' ', "%20")
+    let normalized = file.replace('\\', "/");
+    let mut encoded = String::with_capacity(normalized.len());
+    for byte in normalized.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~' | b'/' | b':') {
+            encoded.push(byte as char);
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    encoded
 }
 
 /// Emit SARIF 2.1.0 for GitHub Code Scanning and compatible tools.
@@ -247,11 +256,45 @@ mod tests {
     }
 
     #[test]
+    fn sarif_percent_encodes_uri_fragment_query_percent_and_unicode_characters() {
+        let finding = Finding::new(
+            Severity::Error,
+            "test",
+            "TEST",
+            "bad",
+            Span::with_file(1, "configs/ä #key?.conf"),
+        );
+        let output: Value = serde_json::from_str(&emit_sarif(&[finding])).unwrap();
+        assert_eq!(
+            output["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]
+                ["uri"],
+            "configs/%C3%A4%20%23key%3F.conf"
+        );
+    }
+
+    #[test]
     fn github_contains_escaped_annotation() {
         let output = emit_github(&[sample()]);
         assert!(output.starts_with("::warning "));
         assert!(output.contains("line=4"));
         assert!(output.contains("title=DUP_HOST"));
+    }
+
+    #[test]
+    fn github_escapes_every_reserved_character_in_properties_and_messages() {
+        let finding = Finding::new(
+            Severity::Error,
+            "invalid-percent-token",
+            "INVALID_TOKEN",
+            "first%\r\nsecond",
+            Span::with_file(7, "configs/a:b,c% file"),
+        )
+        .with_hint("try 100%, then\nretry");
+
+        assert_eq!(
+            emit_github(&[finding]),
+            "::error file=configs/a%3Ab%2Cc%25 file,line=7,title=INVALID_TOKEN::first%25%0D%0Asecond Hint: try 100%25, then%0Aretry\n"
+        );
     }
 
     #[test]

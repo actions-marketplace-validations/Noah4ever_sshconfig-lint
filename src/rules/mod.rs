@@ -1,4 +1,5 @@
 pub mod basic;
+pub mod implementations;
 
 use crate::model::{Config, Finding};
 
@@ -13,13 +14,26 @@ pub trait Rule {
 /// Run all registered rules against a config and return merged findings.
 pub fn run_all(config: &Config) -> Vec<Finding> {
     let rules: Vec<Box<dyn Rule>> = vec![
-        Box::new(basic::DuplicateHost),
-        Box::new(basic::IdentityFileExists),
-        Box::new(basic::WildcardHostOrder),
-        Box::new(basic::DeprecatedWeakAlgorithms),
-        Box::new(basic::DuplicateDirectives),
-        Box::new(basic::InsecureOption),
-        Box::new(basic::UnsafeControlPath),
+        Box::new(implementations::InvalidDirectiveValue),
+        Box::new(implementations::InvalidSyntax),
+        Box::new(implementations::InvalidMatchCondition),
+        Box::new(implementations::UnknownDirective),
+        Box::new(implementations::DeprecatedOption),
+        Box::new(implementations::DuplicateHost),
+        Box::new(implementations::IdentityFileExists),
+        Box::new(implementations::WildcardHostOrder),
+        Box::new(implementations::DeprecatedWeakAlgorithms),
+        Box::new(implementations::DuplicateDirectives),
+        Box::new(implementations::InsecureOption),
+        Box::new(implementations::UnsafeControlPath),
+        Box::new(implementations::NegatedOnlyHost),
+        Box::new(implementations::ProxyCommandJumpConflict),
+        Box::new(implementations::RevokedHostKeysReadable),
+        Box::new(implementations::CertificateFileExists),
+        Box::new(implementations::LocalCommandEnabled),
+        Box::new(implementations::InvalidPercentToken),
+        Box::new(implementations::ControlPersistRequiresMaster),
+        Box::new(implementations::UpdateHostKeysControlPersist),
     ];
 
     let mut findings = Vec::new();
@@ -35,12 +49,23 @@ pub fn run_all(config: &Config) -> Vec<Finding> {
 /// IdentityFile paths would produce misleading filesystem diagnostics.
 pub fn run_portable(config: &Config) -> Vec<Finding> {
     let rules: Vec<Box<dyn Rule>> = vec![
-        Box::new(basic::DuplicateHost),
-        Box::new(basic::WildcardHostOrder),
-        Box::new(basic::DeprecatedWeakAlgorithms),
-        Box::new(basic::DuplicateDirectives),
-        Box::new(basic::InsecureOption),
-        Box::new(basic::UnsafeControlPath),
+        Box::new(implementations::InvalidDirectiveValue),
+        Box::new(implementations::InvalidSyntax),
+        Box::new(implementations::InvalidMatchCondition),
+        Box::new(implementations::UnknownDirective),
+        Box::new(implementations::DeprecatedOption),
+        Box::new(implementations::DuplicateHost),
+        Box::new(implementations::WildcardHostOrder),
+        Box::new(implementations::DeprecatedWeakAlgorithms),
+        Box::new(implementations::DuplicateDirectives),
+        Box::new(implementations::InsecureOption),
+        Box::new(implementations::UnsafeControlPath),
+        Box::new(implementations::NegatedOnlyHost),
+        Box::new(implementations::ProxyCommandJumpConflict),
+        Box::new(implementations::LocalCommandEnabled),
+        Box::new(implementations::InvalidPercentToken),
+        Box::new(implementations::ControlPersistRequiresMaster),
+        Box::new(implementations::UpdateHostKeysControlPersist),
     ];
 
     let mut findings = Vec::new();

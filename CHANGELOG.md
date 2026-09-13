@@ -4,7 +4,61 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This p
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-08-24
+## [1.0.0] - 2026-09-04
+
+### Added
+
+- Validate `Port` values as integers from 1 through 65535 in root, `Host`, and `Match` scopes
+- Add the stable `INVALID_VALUE` diagnostic for table-driven directive value validation
+- Validate numeric values for `ConnectionAttempts`, `NumberOfPasswordPrompts`, `ServerAliveCountMax`, and `CanonicalizeMaxDots`
+- Validate OpenSSH duration syntax for `ConnectTimeout` and `ServerAliveInterval`
+- Validate complete octal `StreamLocalBindMask` values and one or two `IPQoS` arguments
+- Validate documented enumerated values for address selection, TTY and session behavior, connection sharing, hostname canonicalization, host-key handling, tunnels, logging, and public-key authentication
+- Warn about Host blocks made entirely from negated patterns
+- Detect competing ProxyCommand and ProxyJump directives in the same scope
+- Check explicit RevokedHostKeys and CertificateFile paths
+- Report LocalCommand directives that are certainly disabled
+- Validate directive-specific percent tokens, including Match exec commands
+- Publish LSP diagnostics from nested Includes on the included file URI
+- Snapshot every new semantic diagnostic in text, JSON, SARIF, and GitHub formats
+- Add a tested Neovim configuration for the built-in LSP client
+- Exercise both official Pre-Commit hooks against clean, warning, and error fixtures
+- Run the repository Action itself on Linux, macOS, and Windows in CI
+- Test verified VS Code binary downloads, checksum rejection, custom paths, and offline reuse
+- Bound Include expansion to OpenSSH's maximum nesting depth of 16
+- Add OpenSSH differential fixtures and adversarial no-panic coverage
+- Detect misspelled and unknown directives while respecting earlier `IgnoreUnknown` patterns
+- Report current OpenSSH options that are deprecated, obsolete, or ignored
+- Report missing arguments, empty arguments, unbalanced quotes, and invalid `Match` conditions
+- Warn when `ControlPersist` cannot work without any possible `ControlMaster`
+- Warn when `UpdateHostKeys ask` conflicts with enabled `ControlPersist` in the same scope
+- Validate `ForwardX11Timeout`, `RequiredRSASize`, `ControlPersist`, 25 boolean switches, `Compression`, `WarnWeakCrypto`, and the `ObscureKeystrokeTiming` interval range
+
+### Changed
+
+- Document the test-first checkpoint plan from v0.5 to v1.0
+- Prepare a macOS-friendly release workflow that does not publish checkpoint tags
+- Accept OpenSSH-compatible quoted numeric values and explicit positive signs
+- Keep modern and platform-specific valid OpenSSH enum values accepted without guessing the locally installed client version
+- Split built-in rule implementations into one file per rule while preserving the pre-v1 `rules::basic` exports
+- Explain all filesystem-dependent checks in unsaved editor buffers
+- Keep the VS Code rule-guide picker synchronized with every public diagnostic
+- Match OpenSSH argument splitting for single and double quotes, adjacent quoted segments, and supported backslash escapes
+- Treat Host patterns case-insensitively when finding duplicates
+
+### Fixed
+
+- Accept OpenSSH's `IdentityFile none` sentinel instead of reporting it as a missing file
+- Do not print `No issues found` when every requested config file is missing or unreadable
+- Avoid a panic for the valid bare-tilde form `Include ~`
+- Preserve hashes inside OpenSSH tokens instead of treating every unquoted hash as a comment
+- Resolve quoted and escaped IdentityFile and Include paths containing spaces
+- Detect insecure values and weak algorithm lists when their arguments are quoted
+- Percent-encode reserved and non-ASCII characters in SARIF artifact URIs
+- Recognize filesystem-dependent `Key=Value` directives in untitled LSP buffers
+- Keep the browser checker aligned with OpenSSH quoting, escaping, comments, equals forms, directive names, values, and Host case handling
+
+## [0.5.0] - 2026-08-28
 
 ### Added
 
@@ -60,7 +114,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This p
 - Duplicate Host, missing IdentityFile, and wildcard ordering rules
 - Initial CLI, tests, and multi-platform release workflow
 
-[Unreleased]: https://github.com/Noah4ever/sshconfig-lint/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Noah4ever/sshconfig-lint/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Noah4ever/sshconfig-lint/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/Noah4ever/sshconfig-lint/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Noah4ever/sshconfig-lint/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Noah4ever/sshconfig-lint/compare/v0.2.0...v0.3.0

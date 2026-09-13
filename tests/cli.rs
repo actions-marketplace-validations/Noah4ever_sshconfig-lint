@@ -1,5 +1,6 @@
 use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
+use tempfile::tempdir;
 
 #[test]
 fn cli_clean_config_exits_0() {
@@ -18,7 +19,45 @@ fn cli_missing_config_file_exits_2() {
         .arg("tests/fixtures/does_not_exist.config")
         .assert()
         .code(2)
-        .stderr(predicate::str::contains("not found"));
+        .stderr(predicate::str::contains("not found"))
+        .stdout(predicate::str::is_empty());
+}
+
+#[test]
+fn cli_missing_default_config_exits_2_without_claiming_success() {
+    let home = tempdir().unwrap();
+
+    cargo_bin_cmd!("sshconfig-lint")
+        .env("HOME", home.path())
+        .env("USERPROFILE", home.path())
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(".ssh").and(predicate::str::contains("config")))
+        .stdout(predicate::str::is_empty());
+}
+
+#[test]
+fn cli_unreadable_and_linted_paths_keep_real_findings_without_success_message() {
+    cargo_bin_cmd!("sshconfig-lint")
+        .arg("tests/fixtures/does_not_exist.config")
+        .arg("tests/fixtures/duplicate_host.config")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("not found"))
+        .stdout(predicate::str::contains("DUP_HOST"))
+        .stdout(predicate::str::contains("No issues found").not());
+}
+
+#[test]
+fn cli_missing_config_keeps_json_machine_readable() {
+    cargo_bin_cmd!("sshconfig-lint")
+        .arg("tests/fixtures/does_not_exist.config")
+        .arg("--format")
+        .arg("json")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("not found"))
+        .stdout(predicate::eq("[]\n"));
 }
 
 #[test]
@@ -113,4 +152,32 @@ fn cli_config_and_positional_path_are_mutually_exclusive() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn cli_new_error_diagnostics_exit_1_in_every_output_format() {
+    for format in ["text", "json", "sarif", "github"] {
+        cargo_bin_cmd!("sshconfig-lint")
+            .arg("tests/fixtures/semantic_traps.config")
+            .arg("--format")
+            .arg(format)
+            .assert()
+            .code(1);
+    }
+}
+
+#[test]
+fn cli_new_warning_preserves_default_and_strict_exit_codes() {
+    cargo_bin_cmd!("sshconfig-lint")
+        .arg("tests/fixtures/negated_only_host.config")
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("NEGATED_HOST"));
+
+    cargo_bin_cmd!("sshconfig-lint")
+        .arg("tests/fixtures/negated_only_host.config")
+        .arg("--strict")
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("NEGATED_HOST"));
 }
